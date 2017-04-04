@@ -1,0 +1,30 @@
+.select-date {
+  & > * {
+    display: inline-block;
+  }
+
+  input[type='number'] {
+    -moz-appearance:textfield;
+  }
+
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+  }
+
+  input.day {
+    width: 45px;
+    margin-right: 3px;
+  }
+
+  input.year {
+    width: 60px;
+    margin-left: 3px;
+  }
+
+  select[name="month"] {
+    position: relative;
+    top: 1px;
+    width: calc(100% - 45px - 60px - 6px);
+  }
+}
