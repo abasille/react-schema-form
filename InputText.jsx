@@ -24,7 +24,11 @@ const contextTypes = {
 
 export class InputText extends React.Component {
   handleChange(event) {
-    this.context.onChange(this.props.name, event.target.value);
+    const value = this.props.type === 'number' ?
+        parseFloat(event.target.value)
+        : event.target.value;
+
+    this.context.onChange(this.props.name, value);
   }
 
   componentWillMount() {

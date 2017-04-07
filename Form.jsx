@@ -1,8 +1,6 @@
-import { Meteor } from 'meteor/meteor';
+import { _ } from 'meteor/underscore';
 import React from 'react';
-import { FlowRouter } from 'meteor/kadira:flow-router';
-import { TAPi18n } from 'meteor/tap:i18n';
-import { check } from 'meteor/check';
+import { diff } from 'deep-object-diff';
 import { ObjectPath } from '/imports/api/utilities/object-path';
 import './form.scss';
 
@@ -11,11 +9,13 @@ const propTypes = {
   schema: React.PropTypes.instanceOf(SimpleSchema).isRequired,
   onSubmit: React.PropTypes.instanceOf(Function).isRequired,
   onChange: React.PropTypes.instanceOf(Function),
+  nextPropsStrategy: React.PropTypes.oneOf(['merge', 'replace']),
   contextName: React.PropTypes.string,
   debug: React.PropTypes.bool,
 };
 
 const defaultProps = {
+  nextPropsStrategy: 'replace',
   contextName: 'default',
 };
 
@@ -26,6 +26,7 @@ const childContextTypes = {
   registerElementName: React.PropTypes.instanceOf(Function).isRequired,
   unregisterElementName: React.PropTypes.instanceOf(Function).isRequired,
   onChange: React.PropTypes.instanceOf(Function).isRequired,
+  log: React.PropTypes.instanceOf(Function).isRequired,
 };
 
 export class Form extends React.Component {
@@ -35,7 +36,9 @@ export class Form extends React.Component {
     this.validationContext = this.props.schema.namedContext(this.props.contextName);
     this.elementNames = [];
     this.state = {
-      doc: this.props.doc,
+      // Clone 'this.props.doc' to isolate the object from the parent component in order to
+      // process a diff with 'nextProps' when Form.componentWillReceiveProps(nextProps) is called
+      doc: _.clone(this.props.doc),
     };
 
     this.log('doc: ', this.props.doc);
@@ -47,6 +50,7 @@ export class Form extends React.Component {
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
     this.validate = this.validate.bind(this);
+    this.log = this.log.bind(this);
   }
 
   /**
@@ -170,27 +174,33 @@ export class Form extends React.Component {
       registerElementName: this.registerElementName,
       unregisterElementName: this.unregisterElementName,
       onChange: this.handleChange,
+      log: this.log,
     };
   }
 
   componentWillReceiveProps(nextProps) {
-    this.log('Form.componentWillReceiveProps(', nextProps, 'this.validationContext: ',
-        this.validationContext);
+    this.log('diff(', this.props.doc, nextProps.doc, '): ', diff(this.props.doc, nextProps.doc));
+
+    // Check the props.doc doc changed
+    if (!_.isEmpty(diff(this.props.doc, nextProps.doc))) {
+      // Apply a replacement strategy
+      if (this.props.nextPropsStrategy === 'replace') {
+        this.setState({ doc: _.clone(nextProps.doc) });
+        this.log('Form.componentWillReceiveProps(', nextProps, ' - Strategy: replace');
+      } else if (this.props.nextPropsStrategy === 'merge') {
+        this.setState({ doc: _.extend(this.state.doc, _.clone(nextProps.doc)) });
+        this.log('Form.componentWillReceiveProps(', nextProps, ' - Strategy: merge');
+      }
+    } else {
+      this.log('Form.componentWillReceiveProps(', nextProps, ' - no changes');
+    }
 
     if (nextProps.schema !== this.props.schema) {
       this.refreshValidationContext();
     }
-
-    if (nextProps.doc !== this.props.doc) {
-      this.setState({
-        doc: nextProps.doc,
-      });
-    }
   }
 
   render() {
-    this.log('Form.render()');
-
     return (
         <form onSubmit={this.handleSubmit}>
           {this.props.children}
@@ -200,4 +210,5 @@ export class Form extends React.Component {
 }
 
 Form.propTypes = propTypes;
+Form.defaultProps = defaultProps;
 Form.childContextTypes = childContextTypes;
