@@ -10,6 +10,11 @@ const propTypes = {
   name: React.PropTypes.string.isRequired,
   className: React.PropTypes.string,
   attributes: React.PropTypes.object,
+  isComposite: React.PropTypes.bool,
+};
+
+const defaultProps = {
+  isComposite: false,
 };
 
 const contextTypes = {
@@ -21,7 +26,11 @@ export class FormGroup extends React.Component {
   render() {
     const _schema = this.context.schema._schema;
     const isRequired = !(_schema && _schema[this.props.name] && _schema[this.props.name].optional);
-    const hasError = this.context.validationContext.keyIsInvalid(this.props.name);
+    const hasError = this.props.isComposite ?
+        this.context.validationContext.invalidKeys()
+            .filter(invalidKey => invalidKey.name.indexOf(this.props.name) !== -1)
+            .length > 0
+        : this.context.validationContext.keyIsInvalid(this.props.name);
     const classes = this.props.className ? this.props.className.split(' ') : ['form-group'];
     const attributes = this.props.attributes || {};
 
@@ -44,4 +53,5 @@ export class FormGroup extends React.Component {
 }
 
 FormGroup.propTypes = propTypes;
+FormGroup.defaultProps = defaultProps;
 FormGroup.contextTypes = contextTypes;

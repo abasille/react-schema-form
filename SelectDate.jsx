@@ -136,7 +136,7 @@ export class SelectDate extends React.Component {
           <InputText name="year"
                      type="number"
                      placeholder={TAPi18n.__('schema.date.year.longFormatLabel')}
-                     attributes={{ min: currentYear - 100, max: currentYear - 18, maxLength: 4, }}
+                     attributes={{ maxLength: 4, }}
                      className="form-control year"
           />
         </div>

@@ -12,23 +12,29 @@ const contextTypes = {
 };
 
 export class Label extends React.Component {
-  render() {
+  getLabel(nextContext) {
     // Manage array notation
+    const context = nextContext || this.context;
     const schemaName = this.props.name.replace(/\.([0-9]+)\./, '.$.');
-    let label = (this.context.schema._schema
-        && this.context.schema._schema[schemaName]
-        && this.context.schema._schema[schemaName].label
-    ) ? this.context.schema._schema[schemaName].label
+    let label = (context.schema._schema
+        && context.schema._schema[schemaName]
+        && context.schema._schema[schemaName].label
+    ) ? context.schema._schema[schemaName].label
         : schemaName;
 
     if (_.isFunction(label)) {
       label = label();
     }
 
+    return label;
+  }
+
+  render() {
+
     return (
         <label className="control-label">
           {this.props.children}
-          {label}
+          {this.getLabel()}
         </label>
     );
   }

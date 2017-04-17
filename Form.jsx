@@ -11,12 +11,14 @@ const propTypes = {
   onChange: React.PropTypes.instanceOf(Function),
   nextPropsStrategy: React.PropTypes.oneOf(['merge', 'replace']),
   contextName: React.PropTypes.string,
+  useState: React.PropTypes.bool,
   debug: React.PropTypes.bool,
 };
 
 const defaultProps = {
   nextPropsStrategy: 'replace',
   contextName: 'default',
+  useState: true,
 };
 
 const childContextTypes = {
@@ -35,11 +37,14 @@ export class Form extends React.Component {
 
     this.validationContext = this.props.schema.namedContext(this.props.contextName);
     this.elementNames = [];
-    this.state = {
-      // Clone 'this.props.doc' to isolate the object from the parent component in order to
-      // process a diff with 'nextProps' when Form.componentWillReceiveProps(nextProps) is called
-      doc: _.clone(this.props.doc),
-    };
+
+    if (this.props.useState) {
+      this.state = {
+        // Clone 'this.props.doc' to isolate the object from the parent component in order to
+        // process a diff with 'nextProps' when Form.componentWillReceiveProps(nextProps) is called
+        doc: _.clone(this.props.doc),
+      };
+    }
 
     this.log('doc: ', this.props.doc);
     this.log('validationContext: ', this.validationContext);
@@ -103,32 +108,44 @@ export class Form extends React.Component {
    * @param value {*}
    */
   handleChange(name, value) {
-    const doc = ObjectPath.setPath(this.state.doc, name, value, { nullEmptyString: true });
-    const docToValidate = ObjectPath.pickPath(doc, this.getRegisteredSchemaName());
+    if (this.props.useState) {
+      const doc = ObjectPath.setPath(this.state.doc, name, value, { nullEmptyString: true });
+      const docToValidate = ObjectPath.pickPath(doc, this.getRegisteredSchemaName());
 
-    this.validate();
+      this.validate();
 
-    if (this.props.onChange) {
-      // onChange() callback defined => Notify the update to the Form creator
-      this.props.onChange(docToValidate);
+      if (this.props.onChange) {
+        // onChange() callback defined => Notify the update to the Form creator
+        this.props.onChange(docToValidate, name, value);
+      }
+
+      this.setState({
+        doc: doc,
+      });
+
+      this.log('handleChange() - docToValidate: ', docToValidate);
+      this.log('handleChange() - validationContext: ', this.validationContext);
+    } else {
+      const docToValidate = ObjectPath.pickPath(this.props.doc, this.getRegisteredSchemaName());
+
+      ObjectPath.setPath(docToValidate, name, value, { nullEmptyString: true });
+
+      if (this.props.onChange) {
+        // onChange() callback defined => Notify the update to the Form creator
+        this.props.onChange(docToValidate, name, value);
+      }
     }
-
-    this.setState({
-      doc: doc,
-    });
-
-    this.log('handleChange() - docToValidate: ', docToValidate);
-    this.log('handleChange() - validationContext: ', this.validationContext);
   }
 
   handleSubmit(event) {
-    const docToValidate = ObjectPath.pickPath(this.state.doc, this.getRegisteredSchemaName());
+    const doc = this.props.useState ? this.state.doc : this.props.doc;
+    const docToValidate = ObjectPath.pickPath(doc, this.getRegisteredSchemaName());
     const modifier = {};
 
     event.preventDefault();
 
     this.elementNames.forEach(eltName => {
-      const value = ObjectPath.getPath(this.state.doc, eltName);
+      const value = ObjectPath.getPath(docToValidate, eltName);
 
       if (value === null) {
         modifier.$unset = modifier.$unset || {};
@@ -145,8 +162,11 @@ export class Form extends React.Component {
   /**
    * Validate the doc with simple-schema
    */
-  validate() {
-    const docToValidate = ObjectPath.pickPath(this.state.doc, this.getRegisteredSchemaName());
+  validate(nextDoc) {
+    const doc = nextDoc ?
+        nextDoc
+        : (this.props.useState ? this.state.doc : this.props.doc);
+    const docToValidate = ObjectPath.pickPath(doc, this.getRegisteredSchemaName());
     this.log('validate() - docToValidate: ', docToValidate);
 
     this.setState({
@@ -168,7 +188,7 @@ export class Form extends React.Component {
    */
   getChildContext() {
     return {
-      doc: this.state.doc,
+      doc: this.props.useState ? this.state.doc : this.props.doc,
       schema: this.props.schema,
       validationContext: this.validationContext,
       registerElementName: this.registerElementName,
@@ -183,13 +203,17 @@ export class Form extends React.Component {
 
     // Check the props.doc doc changed
     if (!_.isEmpty(diff(this.props.doc, nextProps.doc))) {
-      // Apply a replacement strategy
-      if (this.props.nextPropsStrategy === 'replace') {
-        this.setState({ doc: _.clone(nextProps.doc) });
-        this.log('Form.componentWillReceiveProps(', nextProps, ' - Strategy: replace');
-      } else if (this.props.nextPropsStrategy === 'merge') {
-        this.setState({ doc: _.extend(this.state.doc, _.clone(nextProps.doc)) });
-        this.log('Form.componentWillReceiveProps(', nextProps, ' - Strategy: merge');
+      if (this.props.useState) {
+        // Apply a replacement strategy
+        if (this.props.nextPropsStrategy === 'replace') {
+          this.setState({ doc: _.clone(nextProps.doc) });
+          this.log('Form.componentWillReceiveProps(', nextProps, ' - Strategy: replace');
+        } else if (this.props.nextPropsStrategy === 'merge') {
+          this.setState({ doc: _.extend(this.state.doc, _.clone(nextProps.doc)) });
+          this.log('Form.componentWillReceiveProps(', nextProps, ' - Strategy: merge');
+        }
+      } else {
+        this.validate(nextProps.doc);
       }
     } else {
       this.log('Form.componentWillReceiveProps(', nextProps, ' - no changes');

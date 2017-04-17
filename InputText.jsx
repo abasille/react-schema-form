@@ -39,6 +39,12 @@ export class InputText extends React.Component {
     this.context.unregisterElementName(this.props.name);
   }
 
+  shouldComponentUpdate(nextProps, nextState, nextContext) {
+    const hasValueChanged = ObjectPath.getPath(this.context.doc, this.props.name) !== ObjectPath.getPath(nextContext.doc, this.props.name);
+
+    return hasValueChanged;
+  }
+
   render() {
     const attributes = this.props.attributes || {};
 

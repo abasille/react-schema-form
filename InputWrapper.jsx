@@ -1,18 +1,22 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const propTypes = {
-  name: React.PropTypes.string.isRequired,
-  onChangeWrapper: React.PropTypes.func.isRequired,
-  // placeholder: React.PropTypes.string,
-  // className: React.PropTypes.string,
-  // attributes: React.PropTypes.object,
+  name: PropTypes.string.isRequired,
+  wrappedComponent: PropTypes.func,
+  wrappedComponentProps: PropTypes.object,
+  onChangeWrapper: PropTypes.func.isRequired,
+};
+
+const defaultProps = {
+  wrappedComponentProps: {},
 };
 
 const contextTypes = {
-  doc: React.PropTypes.object.isRequired,
-  registerElementName: React.PropTypes.instanceOf(Function).isRequired,
-  unregisterElementName: React.PropTypes.instanceOf(Function).isRequired,
-  onChange: React.PropTypes.instanceOf(Function).isRequired,
+  doc: PropTypes.object.isRequired,
+  registerElementName: PropTypes.instanceOf(Function).isRequired,
+  unregisterElementName: PropTypes.instanceOf(Function).isRequired,
+  onChange: PropTypes.instanceOf(Function).isRequired,
 };
 
 export class InputWrapper extends React.Component {
@@ -36,12 +40,23 @@ export class InputWrapper extends React.Component {
   }
 
   render() {
-    return React.cloneElement(this.props.children, {
-          onChange: this.onChange,
-        }
+    const WrappedComponent = this.props.wrappedComponent;
+
+    return (
+        <div>
+          {WrappedComponent ?
+              <WrappedComponent onChange={this.onChange} {...this.props.wrappedComponentProps}/>
+              : null
+          }
+          {this.props.children ?
+              React.cloneElement(this.props.children, { onChange: this.onChange, })
+              : null
+          }
+        </div>
     );
   }
 }
 
 InputWrapper.propTypes = propTypes;
+InputWrapper.defaultProps = defaultProps;
 InputWrapper.contextTypes = contextTypes;
